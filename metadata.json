@@ -1,0 +1,8 @@
+{
+  "name": "龍舌蘭咖啡廳發薪系統",
+  "description": "龍舌蘭咖啡廳（Tequila Café）專屬發薪與申報系統。提供店員趣味的肉乾清算換算，並為管理組提供實時核對與發薪控制面板。",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "entities": {
+    "clerk": {
+      "title": "RP Clerk",
+      "description": "Store clerks of the RP shop",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the clerk"
+        },
+        "name": {
+          "type": "string",
+          "description": "Clerk name"
+        },
+        "password": {
+          "type": "string",
+          "description": "Optional password to protect clerk privacy"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the clerk was added to the shop"
+        }
+      },
+      "required": ["id", "name", "createdAt"]
+    },
+    "payrollEntry": {
+      "title": "Payroll Entry",
+      "description": "Daily meat jerky and payroll record for a clerk",
+      "type": "object",
+      "properties": {
+        "clerkName": {
+          "type": "string",
+          "description": "Clerk name associated with this entry"
+        },
+        "meatJerkyCount": {
+          "type": "integer",
+          "description": "Number of meat jerky turned in"
+        },
+        "salaryRate": {
+          "type": "integer",
+          "description": "Unit rate (default 24000) for calculating salary"
+        },
+        "totalSalary": {
+          "type": "integer",
+          "description": "Calculated payout amount"
+        },
+        "isVerified": {
+          "type": "boolean",
+          "description": "Whether the manager has recycled/verified the meat jerky"
+        },
+        "isPaid": {
+          "type": "boolean",
+          "description": "Whether the manager has completed the payroll transaction"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Submit date and time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update date and time"
+        }
+      },
+      "required": ["clerkName", "meatJerkyCount", "salaryRate", "totalSalary", "isVerified", "isPaid", "createdAt", "updatedAt"]
+    },
+    "shopSettings": {
+      "title": "Shop Settings",
+      "description": "Global config like jerky exchange rate",
+      "type": "object",
+      "properties": {
+        "jerkyRate": {
+          "type": "integer",
+          "description": "Currency value of 1 meat jerky"
+        }
+      },
+      "required": ["jerkyRate"]
+    }
+  },
+  "firestore": {
+    "/clerks/{clerkId}": {
+      "schema": "clerk",
+      "description": "List of store clerk registration profiles"
+    },
+    "/payrollEntries/{entryId}": {
+      "schema": "payrollEntry",
+      "description": "Clerk logs for daily meat jerky turn-ins"
+    },
+    "/settings/config": {
+      "schema": "shopSettings",
+      "description": "Global configuration settings"
+    }
+  }
+}

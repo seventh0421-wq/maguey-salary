@@ -1,0 +1,106 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == "seventh0421@gmail.com" ||
+        request.auth.token.email == "kiritosteven0527@gmail.com"
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Clerk definitions schema validation helper
+    function isValidClerk(data) {
+      return data.keys().hasAll(['id', 'name', 'createdAt'])
+        && (data.keys().size() == 3 || (data.keys().size() == 4 && data.keys().hasAll(['password'])))
+        && data.id is string && data.id.size() <= 100
+        && data.name is string && data.name.size() <= 100
+        && (!data.keys().hasAll(['password']) || (data.password is string && data.password.size() <= 100))
+        && data.createdAt is timestamp;
+    }
+
+    // Payroll entry schema validation helper
+    function isValidPayrollEntry(data) {
+      return data.keys().hasAll([
+          'clerkName', 'meatJerkyCount', 'salaryRate', 'totalSalary', 
+          'isVerified', 'isPaid', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().size() == 8
+        && data.clerkName is string && data.clerkName.size() <= 100
+        && data.meatJerkyCount is int && data.meatJerkyCount >= 0 && data.meatJerkyCount <= 1000000
+        && data.salaryRate is int && data.salaryRate > 0
+        && data.totalSalary is int && data.totalSalary == data.meatJerkyCount * data.salaryRate
+        && data.isVerified is bool
+        && data.isPaid is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Settings schema validation helper
+    function isValidSettings(data) {
+      return data.keys().hasAll(['jerkyRate'])
+        && data.keys().size() == 1
+        && data.jerkyRate is int && data.jerkyRate > 0;
+    }
+
+    // Rule definitions for Clerks
+    match /clerks/{clerkId} {
+      allow read: if true;
+      allow write, delete: if true;
+    }
+
+    // Rule definitions for Payroll Entries
+    match /payrollEntries/{entryId} {
+      allow read: if true;
+      
+      // Anyone can submit a fresh payroll entry (unverified, unpaid, and math checks out)
+      allow create: if isValidId(entryId) 
+        && isValidPayrollEntry(incoming())
+        && incoming().isVerified == false
+        && incoming().isPaid == false
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(entryId) 
+        && isValidPayrollEntry(incoming());
+
+      // Deleting can only be performed by administrators
+      allow delete: if true;
+    }
+
+    // Rule definitions for global shop layout configuration
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isValidId(settingId) && isValidSettings(incoming());
+    }
+
+    // Rule definitions for admin listings
+    match /admins/{adminId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
