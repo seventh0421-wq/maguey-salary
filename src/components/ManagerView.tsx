@@ -29,7 +29,9 @@ import {
   UserPlus, 
   Activity,
   Award,
-  CircleAlert
+  CircleAlert,
+  Calendar,
+  Search
 } from 'lucide-react';
 
 interface ManagerViewProps {
@@ -48,6 +50,77 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
   const [newRateInput, setNewRateInput] = useState<string>(String(jerkyRate));
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [managerTab, setManagerTab] = useState<'clearing' | 'history'>('clearing');
+  const [dateFilter, setDateFilter] = useState<string | null>(null);
+
+  // Helper to extract double-digit YYYY-MM-DD from Firebase timestamp
+  const getEntryDateStr = (createdAtSnap: any): string => {
+    if (!createdAtSnap || !createdAtSnap.seconds) return '未定日期';
+    const d = new Date(createdAtSnap.seconds * 1000);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const getWeekday = (dateStr: string): string => {
+    try {
+      const d = new Date(dateStr);
+      const day = d.getDay();
+      const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+      return weekdays[day];
+    } catch {
+      return '';
+    }
+  };
+
+  // Group entries by business days (dates)
+  const groupedHistory = React.useMemo(() => {
+    const groups: { [dateStr: string]: {
+      dateStr: string;
+      totalJerky: number;
+      verifiedJerky: number;
+      totalSalary: number;
+      paidSalary: number;
+      clerks: Set<string>;
+      entriesList: PayrollEntry[];
+    }} = {};
+
+    entries.forEach(entry => {
+      const dateStr = getEntryDateStr(entry.createdAt);
+      if (dateStr === '未定日期') return;
+
+      if (!groups[dateStr]) {
+        groups[dateStr] = {
+          dateStr,
+          totalJerky: 0,
+          verifiedJerky: 0,
+          totalSalary: 0,
+          paidSalary: 0,
+          clerks: new Set<string>(),
+          entriesList: []
+        };
+      }
+
+      groups[dateStr].totalJerky += entry.meatJerkyCount;
+      if (entry.isVerified) {
+        groups[dateStr].verifiedJerky += entry.meatJerkyCount;
+      }
+      groups[dateStr].totalSalary += entry.totalSalary;
+      if (entry.isPaid) {
+        groups[dateStr].paidSalary += entry.totalSalary;
+      }
+      groups[dateStr].clerks.add(entry.clerkName);
+      groups[dateStr].entriesList.push(entry);
+    });
+
+    return Object.values(groups).sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+  }, [entries]);
+
+  const filteredEntries = React.useMemo(() => {
+    if (!dateFilter) return entries;
+    return entries.filter(e => getEntryDateStr(e.createdAt) === dateFilter);
+  }, [entries, dateFilter]);
 
   // Default supervisor password: "1234"
   const ADMIN_PASSWORD = "1234";
@@ -439,10 +512,12 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
             {/* Left Box: Payroll Record verification center (Span 2) */}
             <div className="xl:col-span-2 space-y-4" id="ledger_verification_center">
               <div className="bg-[#11241a] rounded-2xl border border-emerald-900/30 shadow-2xl overflow-hidden" id="ledger_card_inner">
+                
+                {/* Header Title with totals */}
                 <div className="p-6 border-b border-emerald-950/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <h3 className="text-base font-bold text-gray-100 flex items-center gap-2">
                     <span className="w-2 h-2 bg-lime-400 rounded-full animate-ping"></span> 
-                    龍舌蘭出納核銷中心 ({entries.length} 筆清算)
+                    龍舌蘭出納核銷中心 {dateFilter && `(${dateFilter})`} ({filteredEntries.length} / {entries.length} 筆清算)
                   </h3>
                   <div className="text-xs text-teal-200 bg-teal-500/10 border border-teal-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5" id="notice_rules">
                     <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-lime-400" />
@@ -450,113 +525,231 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
                   </div>
                 </div>
 
+                {/* Sub navigation Tabs */}
+                <div className="flex bg-[#0a1410] border-b border-emerald-950/55 p-1 px-4 gap-2" id="manager_sub_tabs">
+                  <button
+                    onClick={() => setManagerTab('clearing')}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-lg border-b-2 transition-all cursor-pointer ${
+                      managerTab === 'clearing'
+                        ? 'border-lime-400 bg-[#11241a] text-lime-400'
+                        : 'border-transparent text-gray-400 hover:text-gray-200'
+                    }`}
+                    id="sub_tab_clearing"
+                  >
+                    <Activity className="w-3.5 h-3.5" />
+                    實時出納核銷明細
+                  </button>
+                  <button
+                    onClick={() => setManagerTab('history')}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-lg border-b-2 transition-all cursor-pointer ${
+                      managerTab === 'history'
+                        ? 'border-lime-400 bg-[#11241a] text-lime-400'
+                        : 'border-transparent text-gray-400 hover:text-gray-200'
+                    }`}
+                    id="sub_tab_history"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-lime-400" />
+                    歷史營業日清算總覽
+                  </button>
+                </div>
+
+                {/* Active Date Filter notice strip */}
+                {dateFilter && (
+                  <div className="bg-lime-500/10 border-b border-lime-500/20 px-6 py-3 flex items-center justify-between text-xs text-lime-400 font-medium" id="filter_active_banner">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-lime-400 animate-pulse" />
+                      正在篩選營業日：<b>{dateFilter} ({getWeekday(dateFilter)})</b> 的帳單紀錄
+                    </span>
+                    <button
+                      onClick={() => setDateFilter(null)}
+                      className="text-[10px] uppercase font-bold bg-[#0a1410] hover:bg-emerald-950 px-2.5 py-1 rounded border border-lime-500/30 transition-all cursor-pointer"
+                    >
+                      顯示全體紀錄
+                    </button>
+                  </div>
+                )}
+
+                {/* Loading state rendering */}
                 {loading ? (
                   <div className="text-center py-16 text-emerald-600 text-sm animate-pulse" id="inner_loading_label">載入帳本紀錄中...</div>
-                ) : entries.length === 0 ? (
-                  <div className="text-center py-16 text-emerald-700 border border-dashed border-emerald-950/40 rounded-xl m-6 bg-[#0a1410]/40" id="inner_empty_label">
-                    目前沒有任何店員提交發薪結算！🍹
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto" id="table_manager_ledger_container">
-                    <table className="w-full text-left border-collapse text-sm">
-                      <thead>
-                        <tr className="bg-[#11241a] text-[11px] text-emerald-400 uppercase border-b border-emerald-950/55 h-12">
-                          <th className="px-6 font-bold">店員名字 / 時間</th>
-                          <th className="px-6 text-right font-bold">申報收成 (肉乾)</th>
-                          <th className="px-6 text-right font-bold">換算所得</th>
-                          <th className="px-6 text-center font-bold">1. 實體對帳進倉</th>
-                          <th className="px-6 text-center font-bold">2. 核對手動發薪</th>
-                          <th className="px-6 text-right font-bold">動作</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-emerald-950/50">
-                        {entries.map((entry) => {
-                          const submitDate = entry.createdAt?.seconds 
-                            ? new Date(entry.createdAt.seconds * 1000).toLocaleString('zh-TW', { hour12: false })
-                            : '同步中...';
-                          return (
-                            <tr key={entry.id} className={`h-16 transition-colors ${
-                              entry.isPaid ? 'opacity-40 bg-emerald-950/20' : entry.isVerified ? 'bg-lime-500/5' : 'hover:bg-lime-500/5'
-                            }`}>
-                              {/* Clerk Name and Submit Hour */}
-                              <td className="px-6">
-                                <div className="font-bold text-gray-100">☕️ {entry.clerkName}</div>
-                                <div className="text-[10px] text-emerald-600 font-mono mt-0.5">{submitDate}</div>
-                              </td>
+                ) : managerTab === 'clearing' ? (
+                  filteredEntries.length === 0 ? (
+                    <div className="text-center py-16 text-emerald-700 border border-dashed border-emerald-950/40 rounded-xl m-6 bg-[#0a1410]/40" id="inner_empty_label">
+                      {dateFilter 
+                        ? `該營業日 (${dateFilter}) 沒有任何店員提交發薪結算！🍹`
+                        : "目前沒有任何店員提交發薪結算！🍹"
+                      }
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto" id="table_manager_ledger_container">
+                      <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                          <tr className="bg-[#11241a] text-[11px] text-emerald-400 uppercase border-b border-emerald-950/55 h-12">
+                            <th className="px-6 font-bold">店員名字 / 時間</th>
+                            <th className="px-6 text-right font-bold">申報收成 (肉乾)</th>
+                            <th className="px-6 text-right font-bold">換算所得</th>
+                            <th className="px-6 text-center font-bold">1. 實體對帳進倉</th>
+                            <th className="px-6 text-center font-bold">2. 核對手動發薪</th>
+                            <th className="px-6 text-right font-bold">動作</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-emerald-950/50">
+                          {filteredEntries.map((entry) => {
+                            const submitDate = entry.createdAt?.seconds 
+                              ? new Date(entry.createdAt.seconds * 1000).toLocaleString('zh-TW', { hour12: false })
+                              : '同步中...';
+                            return (
+                              <tr key={entry.id} className={`h-16 transition-colors ${
+                                entry.isPaid ? 'opacity-40 bg-emerald-950/20' : entry.isVerified ? 'bg-lime-500/5' : 'hover:bg-lime-500/5'
+                              }`}>
+                                {/* Clerk Name and Submit Hour */}
+                                <td className="px-6">
+                                  <div className="font-bold text-gray-100">☕️ {entry.clerkName}</div>
+                                  <div className="text-[10px] text-emerald-600 font-mono mt-0.5">{submitDate}</div>
+                                </td>
 
-                              {/* Meat Jerky count */}
-                              <td className="px-6 text-right font-mono font-bold text-gray-100">
-                                {entry.meatJerkyCount.toLocaleString()} <span className="text-xs font-normal text-emerald-600">PCS</span>
-                              </td>
+                                {/* Meat Jerky count */}
+                                <td className="px-6 text-right font-mono font-bold text-gray-100">
+                                  {entry.meatJerkyCount.toLocaleString()} <span className="text-xs font-normal text-emerald-600">PCS</span>
+                                </td>
 
-                              {/* Payout salary */}
-                              <td className="px-6 text-right font-mono font-black text-lime-400">
-                                ${entry.totalSalary.toLocaleString()}
-                              </td>
+                                {/* Payout salary */}
+                                <td className="px-6 text-right font-mono font-black text-lime-400">
+                                  ${entry.totalSalary.toLocaleString()}
+                                </td>
 
-                              {/* Step 1: Collect/Verify checkbox */}
-                              <td className="px-6 text-center">
-                                <button
-                                  onClick={() => handleToggleVerify(entry)}
-                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                    entry.isVerified 
-                                      ? 'bg-lime-500/15 border-lime-500/30 text-lime-400' 
-                                      : 'bg-[#0a1410] border-emerald-900/40 text-emerald-500 hover:bg-emerald-950/60'
-                                  }`}
-                                  id={`btn_verify_${entry.id}`}
-                                >
-                                  {entry.isVerified ? (
-                                    <>
-                                      <CheckSquare className="w-4 h-4 text-lime-400 animate-pulse" />
-                                      已收進倉
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Square className="w-4 h-4 text-emerald-700" />
-                                      確認回收
-                                    </>
-                                  )}
-                                </button>
-                              </td>
-
-                              {/* Step 2: Pay Money button */}
-                              <td className="px-6 text-center">
-                                {entry.isPaid ? (
-                                  <div className="flex justify-center">
-                                    <span className="text-xs text-emerald-600 italic font-semibold">已經發放 🍹</span>
-                                  </div>
-                                ) : (
+                                {/* Step 1: Collect/Verify checkbox */}
+                                <td className="px-6 text-center">
                                   <button
-                                    onClick={() => handleTogglePaid(entry)}
-                                    disabled={!entry.isVerified}
+                                    onClick={() => handleToggleVerify(entry)}
                                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                      entry.isVerified
-                                        ? 'bg-lime-400 hover:bg-lime-500 text-[#08120e] border-transparent shadow-lg shadow-lime-500/10'
-                                        : 'bg-[#0a1410] border-emerald-950/40 text-emerald-850 cursor-not-allowed'
+                                      entry.isVerified 
+                                        ? 'bg-lime-500/15 border-lime-500/30 text-lime-400' 
+                                        : 'bg-[#0a1410] border-emerald-900/40 text-emerald-500 hover:bg-emerald-950/60'
                                     }`}
-                                    id={`btn_paid_${entry.id}`}
+                                    id={`btn_verify_${entry.id}`}
                                   >
-                                    核銷發薪
+                                    {entry.isVerified ? (
+                                      <>
+                                        <CheckSquare className="w-4 h-4 text-lime-400 animate-pulse" />
+                                        已收進倉
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Square className="w-4 h-4 text-emerald-700" />
+                                        確認回收
+                                      </>
+                                    )}
                                   </button>
-                                )}
-                              </td>
+                                </td>
 
-                              {/* Manage log (Delete) */}
-                              <td className="px-6 text-right">
-                                <button
-                                  onClick={() => handleDeleteEntry(entry.id, entry.clerkName)}
-                                  className="text-emerald-700 hover:text-red-400 p-2 rounded-lg hover:bg-[#0a1410] transition-colors cursor-pointer"
-                                  title="刪除申請"
-                                  id={`btn_delete_${entry.id}`}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
+                                {/* Step 2: Pay Money button */}
+                                <td className="px-6 text-center">
+                                  {entry.isPaid ? (
+                                    <div className="flex justify-center">
+                                      <span className="text-xs text-emerald-600 italic font-semibold">已經發放 🍹</span>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleTogglePaid(entry)}
+                                      disabled={!entry.isVerified}
+                                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                        entry.isVerified
+                                          ? 'bg-lime-400 hover:bg-lime-500 text-[#08120e] border-transparent shadow-lg shadow-lime-500/10'
+                                          : 'bg-[#0a1410] border-emerald-950/40 text-emerald-850 cursor-not-allowed'
+                                      }`}
+                                      id={`btn_paid_${entry.id}`}
+                                    >
+                                      核銷發薪
+                                    </button>
+                                  )}
+                                </td>
+
+                                {/* Manage log (Delete) */}
+                                <td className="px-6 text-right">
+                                  <button
+                                    onClick={() => handleDeleteEntry(entry.id, entry.clerkName)}
+                                    className="text-emerald-700 hover:text-red-400 p-2 rounded-lg hover:bg-[#0a1410] transition-colors cursor-pointer"
+                                    title="刪除申請"
+                                    id={`btn_delete_${entry.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                ) : (
+                  /* History Tab rendering grouped days with custom aggregates */
+                  <div className="p-6 space-y-4" id="history_tab_content">
+                    <div className="text-xs text-emerald-580 leading-relaxed font-semibold">
+                      💡 系統已自動將全體店員的申報紀錄依 <b>「實際營業日期」</b> 完成每日彙整，點擊下方營業日的「查詢明細」可一鍵篩選出納對角。
+                    </div>
+
+                    {groupedHistory.length === 0 ? (
+                      <div className="text-center py-12 text-emerald-700 border border-dashed border-emerald-950/40 rounded-xl bg-[#0a1410]/40">
+                        目前尚無任何營業日的歷史申報數據。
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {groupedHistory.map((group) => {
+                          const weekday = getWeekday(group.dateStr);
+                          const isFullyPaid = group.entriesList.every(e => e.isPaid);
+                          const isFullyVerified = group.entriesList.every(e => e.isVerified);
+
+                          return (
+                            <div 
+                              key={group.dateStr}
+                              className="bg-[#0a1410] border border-emerald-950/60 hover:border-lime-500/20 p-5 rounded-xl transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                            >
+                              <div className="space-y-1.5 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-sm font-bold text-gray-100 font-mono tracking-wider">{group.dateStr}</span>
+                                  <span className="text-[10px] bg-emerald-950 text-emerald-400 font-bold px-2 py-0.5 rounded-md border border-emerald-900/40">{weekday}</span>
+                                  
+                                  {isFullyPaid ? (
+                                    <span className="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-md font-bold">● 已全數核銷發薪</span>
+                                  ) : isFullyVerified ? (
+                                    <span className="text-[9px] bg-cyan-950 text-cyan-300 border border-cyan-500/25 px-1.5 py-0.5 rounded-md font-bold">● 點收入倉·待撥款</span>
+                                  ) : (
+                                    <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-md font-bold animate-pulse">● 帳目核對中</span>
+                                  )}
+                                </div>
+                                
+                                <div className="flex flex-col sm:flex-row sm:gap-x-6 gap-y-1 text-xs text-emerald-500 font-semibold mt-1">
+                                  <span>
+                                    🥩 當日收成肉乾: <b className="text-gray-200 font-mono">{group.totalJerky} 個</b> (倉庫已點收 {group.verifiedJerky} 個)
+                                  </span>
+                                  <span>
+                                    💰 當日所得薪資: <b className="text-lime-400 font-mono">${group.totalSalary.toLocaleString()}</b> (已發發 ${group.paidSalary.toLocaleString()})
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-emerald-600 flex flex-wrap items-center gap-1.5 mt-1 border-t border-emerald-950/40 pt-1.5">
+                                  <span className="font-bold text-lime-500/85">出勤店員 ({group.clerks.size}人):</span>
+                                  <span className="text-gray-300 bg-emerald-950/50 px-1.5 py-0.5 rounded text-[10px]">{Array.from(group.clerks).join('、')}</span>
+                                  <span className="text-gray-500 font-mono ml-auto">{group.entriesList.length} 筆清算紀錄</span>
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => {
+                                  setDateFilter(group.dateStr);
+                                  setManagerTab('clearing');
+                                }}
+                                className="self-stretch sm:self-auto bg-lime-400 hover:bg-lime-500 text-[#08120e] text-xs font-bold px-4 py-2.5 rounded-lg flex items-center justify-center gap-1 shadow-lg shadow-lime-500/5 transition-all cursor-pointer"
+                              >
+                                <Search className="w-3.5 h-3.5" />
+                                查詢當日明細
+                              </button>
+                            </div>
                           );
                         })}
-                      </tbody>
-                    </table>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

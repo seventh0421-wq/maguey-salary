@@ -3,12 +3,28 @@ import { doc, onSnapshot, setDoc, deleteDoc, collection, getDocs, serverTimestam
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
 import ClerkView from './components/ClerkView';
 import ManagerView from './components/ManagerView';
-import { Coins, ShieldCheck, Sparkles, Coffee } from 'lucide-react';
+import { Coins, ShieldCheck, Sparkles, Coffee, Clock, Calendar } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'clerk' | 'manager'>('clerk');
   const [jerkyRate, setJerkyRate] = useState<number>(24000); // Default exchange rate
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [systemTime, setSystemTime] = useState(new Date());
+
+  // Update clock every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSystemTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formattedTime = systemTime.toLocaleDateString('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'long'
+  }) + ' ' + systemTime.toLocaleTimeString('zh-TW', { hour12: false });
 
   // Auto-seed requested clerks and auto-deduplicate any duplicates in real-time
   useEffect(() => {
@@ -64,12 +80,11 @@ export default function App() {
           }
         }
 
-        // 2. SEED: Auto-seed missing clerks if they do not exist
-        const targetClerks = ["曜恆", "托托", "尤里", "凱文", "墨雲", "龍炎", "法珀爾", "閻羅"];
-        for (const name of targetClerks) {
-          const docs = clerkGroups[name];
-          if (!docs || docs.length === 0) {
-            // Use an ID that is deterministic to handle concurrent loading/Strict Mode duplication perfectly
+        // 2. SEED: Only seed core default clerks if the database is COMPLETELY empty.
+        // This ensures if administrators delete anyone from the roster, they stay successfully deleted.
+        if (querySnapshot.empty) {
+          const targetClerks = ["曜恆", "托托", "尤里", "凱文", "墨雲", "龍炎", "法珀爾", "閻羅"];
+          for (const name of targetClerks) {
             const cleanNameForId = name.replace(/\s+/g, '_');
             const clerkId = `clerk_seed_${cleanNameForId}`;
             
@@ -117,8 +132,8 @@ export default function App() {
     <div className="min-h-screen bg-[#08120e] text-gray-100 flex flex-col font-sans" id="app_root">
       
       {/* Immersive Top Brand Banner */}
-      <header className="h-20 border-b border-emerald-950/40 flex items-center justify-between px-6 sm:px-10 bg-[#10241b] sticky top-0 z-40" id="app_header">
-        <div className="max-w-7xl w-full mx-auto flex flex-col sm:flex-row items-center justify-between gap-4" id="app_header_container">
+      <header className="min-h-[5rem] py-4 border-b border-emerald-950/40 flex items-center justify-between px-6 sm:px-10 bg-[#10241b] sticky top-0 z-40" id="app_header">
+        <div className="max-w-7xl w-full mx-auto flex flex-col md:flex-row items-center justify-between gap-4" id="app_header_container">
           
           <div className="flex items-center gap-3" id="app_logo_title">
             <div className="w-10 h-10 rounded-full bg-lime-500/10 border border-lime-500/30 flex items-center justify-center text-lime-400 font-bold" id="logo_box">
@@ -131,13 +146,22 @@ export default function App() {
                 </h1>
                 <span className="text-[10px] font-bold bg-lime-500/20 text-lime-300 border border-lime-500/40 px-1.5 py-0.5 rounded-md flex items-center gap-1">
                   <Sparkles className="w-2.5 h-2.5 text-lime-400" />
-                  Tequila v2.6
+                  Tequila v2.7
                 </span>
               </div>
               <p className="text-[10px] text-emerald-500 uppercase tracking-widest mt-0.5">
                 Official Tequila Cafe Portal · 暖心微醺 實時發薪
               </p>
             </div>
+          </div>
+
+          {/* Real-time System clock */}
+          <div className="flex flex-col items-center md:items-end font-mono text-xs text-center md:text-right" id="header_clock">
+            <div className="text-lime-400 font-bold tracking-wider flex items-center gap-1.5 bg-[#08120e] border border-emerald-950/65 px-3 py-1.5 rounded-lg shadow-md shadow-emerald-950/30">
+              <Clock className="w-3.5 h-3.5 text-lime-400 animate-spin" style={{ animationDuration: '10s' }} />
+              <span>{formattedTime}</span>
+            </div>
+            <span className="text-[9px] text-[#2c5b44] mt-1 uppercase tracking-widest font-black">Tequila Real-Time Portal · 暖心微醺</span>
           </div>
 
           {/* Navigation Toggle Option Bar */}

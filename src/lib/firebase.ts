@@ -1,11 +1,21 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyB1a-0ANh_RmEbOD9ljOOePxDmuGpPJ5D8",
+  authDomain: "maguey-salary.firebaseapp.com",
+  databaseURL: "https://maguey-salary-default-rtdb.firebaseio.com",
+  projectId: "maguey-salary",
+  storageBucket: "maguey-salary.firebasestorage.app",
+  messagingSenderId: "968789829518",
+  appId: "1:968789829518:web:f290ea0c438e65b30fa6df"
+};
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app);
 export const auth = getAuth();
 
 // Error definition as mandated by firebase-integration skill
