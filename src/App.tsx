@@ -161,7 +161,6 @@ export default function App() {
               <Clock className="w-3.5 h-3.5 text-lime-400 animate-spin" style={{ animationDuration: '10s' }} />
               <span>{formattedTime}</span>
             </div>
-            <span className="text-[9px] text-[#2c5b44] mt-1 uppercase tracking-widest font-black">Tequila Real-Time Portal · 暖心微醺</span>
           </div>
 
           {/* Navigation Toggle Option Bar */}
