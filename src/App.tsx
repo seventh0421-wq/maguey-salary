@@ -150,7 +150,7 @@ export default function App() {
                 </span>
               </div>
               <p className="text-[10px] text-emerald-500 uppercase tracking-widest mt-0.5">
-                Official Tequila Cafe Portal · 暖心微醺 實時發薪
+                Official Maguey Cafe Portal
               </p>
             </div>
           </div>
