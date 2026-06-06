@@ -27,8 +27,12 @@ import {
   Coffee,
   Lock,
   Unlock,
-  Key
+  Key,
+  Heart,
+  Smile,
+  BookOpen
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface ClerkViewProps {
   jerkyRate: number;
@@ -47,6 +51,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
   const [authenticatedClerkName, setAuthenticatedClerkName] = useState<string>('');
   const [clerkPassword, setClerkPassword] = useState<string>('');
   const [clerkPasswordConfig, setClerkPasswordConfig] = useState<string>('');
+  const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(false);
 
   const currentSelectedClerkObj = clerks.find(c => c.name === selectedClerk);
 
@@ -72,6 +77,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
       setAuthenticatedClerkName(selectedClerk);
       setNotification({ type: 'success', text: `密碼驗證成功！歡迎上工，${selectedClerk} 🍹` });
       setClerkPassword('');
+      setShowWelcomeModal(true);
     } else {
       setNotification({ type: 'error', text: '密碼錯誤，請重新輸入！若為首次登入請確認流程。' });
     }
@@ -104,6 +110,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
       setClerkPassword('');
       setClerkPasswordConfig('');
       setNotification({ type: 'success', text: `密碼設定成功！已成功登入店員【${selectedClerk}】系統。` });
+      setShowWelcomeModal(true);
     } catch (err) {
       console.error(err);
       setNotification({ type: 'error', text: '設定密碼失敗，請稍後再試！' });
@@ -144,8 +151,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
     const entriesRef = collection(db, 'payrollEntries');
     const q = query(
       entriesRef, 
-      where('clerkName', '==', selectedClerk),
-      orderBy('createdAt', 'desc')
+      where('clerkName', '==', selectedClerk)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -218,7 +224,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
 
     const count = Number(meatJerkyCount);
     if (isNaN(count) || count <= 0) {
-      setNotification({ type: 'error', text: '請輸入正確的大於 0 的肉乾數量！' });
+      setNotification({ type: 'error', text: '請輸入正確的大於 0 的小零食數量！' });
       return;
     }
 
@@ -256,7 +262,8 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8" id="clerk_view_root">
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8" id="clerk_view_root">
       
       {/* Sidebar: Clerk Identity Login */}
       <div className="lg:col-span-4 space-y-6" id="clerk_sidebar">
@@ -366,7 +373,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
               <div className="p-4 bg-[#0a1410] rounded-xl border border-emerald-950" id="clerk_rule_box">
                 <span className="text-xs font-bold text-lime-400 block mb-1">🍋 龍舌蘭發薪守則 🍹</span>
                 <p className="text-xs text-emerald-450 leading-relaxed">
-                  請在此結算並填報今天獲得的「肉乾」清算總數。我們今天的特調匯率為一片肉乾兌換 <b className="text-lime-400 font-mono">${jerkyRate.toLocaleString()}</b> 元。填報完成後，請將肉乾送往倉庫核銷以供主管撥款。
+                  請在此結算並填報今天獲得的「小零食」清算總數。我們今天的特調匯率為一個小零食兌換 <b className="text-lime-400 font-mono">${jerkyRate.toLocaleString()}</b> 元。填報完成後，請將小零食送往倉庫核銷以供主管撥款。
                 </p>
               </div>
             </div>
@@ -379,7 +386,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
             <Coffee className="w-6 h-6 text-lime-400" />
           </div>
           <p className="text-sm text-emerald-200/90 italic leading-relaxed">
-            "今日特調：黃金肉乾發薪中 🍹<br />
+            "今日特調：黃金小零食發薪中 🍹<br />
             請務必連同實體繳交至發薪櫃檯！"
           </p>
         </div>
@@ -424,7 +431,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
                 <div>
                   <h3 className="text-base font-bold text-gray-100">【{selectedClerk}】隱私防護鎖 🔐</h3>
                   <p className="text-xs text-emerald-500 mt-2 leading-relaxed">
-                    此帳號已啟用個人專屬密碼。請輸入您的登入密碼解鎖，以填報今日肉乾數量並檢視您的所得歷史：
+                    此帳號已啟用個人專屬密碼。請輸入您的登入密碼解鎖，以填報今日小零食數量並檢視您的所得歷史：
                   </p>
                 </div>
 
@@ -458,7 +465,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
                 <div>
                   <h3 className="text-base font-bold text-gray-100">【{selectedClerk}】首次登入設定密碼 🛡️</h3>
                   <p className="text-xs text-emerald-500 mt-2 leading-relaxed">
-                    為保障您的肉乾收成、薪資隱私與報帳安全，請在首次使用時為此角色設定一組專屬員工密碼。此後，所有所得清算、撥款紀錄及試算僅在此密碼解鎖後顯示，防止其他店員探看您的隱私。
+                    為保障您的小零食收成、薪資隱私與報帳安全，請在首次使用時為此角色設定一組專屬員工密碼。此後，所有所得清算、撥款紀錄及試算僅在此密碼解鎖後顯示，防止其他店員探看您的隱私。
                   </p>
                 </div>
 
@@ -502,14 +509,14 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
                 
                 {/* Meat Jerky input field */}
                 <div id="field_jerky_count" className="space-y-2">
-                  <label className="text-xs text-emerald-400 uppercase tracking-wider block font-bold">今日收成肉乾總數</label>
+                  <label className="text-xs text-emerald-400 uppercase tracking-wider block font-bold">今日收成小零食總數</label>
                   <div className="relative">
                     <input
                       type="number"
                       min="1"
                       max="1000000"
                       step="1"
-                      placeholder="輸入肉乾數量..."
+                      placeholder="輸入小零食數量..."
                       value={meatJerkyCount}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -571,7 +578,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
                   <thead>
                     <tr className="bg-[#10241b] border-b border-emerald-950 text-emerald-400 text-[11px] uppercase font-bold tracking-wider">
                       <th className="p-4 pl-6">申報日期 & 時間</th>
-                      <th className="p-4 text-right">肉乾清算數</th>
+                      <th className="p-4 text-right">小零食清算數</th>
                       <th className="p-4 text-right">今日薪資額</th>
                       <th className="p-4 text-center">實體點交狀態</th>
                       <th className="p-4 text-center">發放進度</th>
@@ -629,7 +636,164 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
           </div>
         )}
       </div>
-
     </div>
+
+      {/* Onboarding Dialog: Manager's Gratitude & Instructions Multi-step Panel */}
+      <AnimatePresence>
+        {showWelcomeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" id="welcome_modal_overlay">
+            {/* Backdrop overlay */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-[#040907]/90 backdrop-blur-sm cursor-default"
+              onClick={() => setShowWelcomeModal(false)}
+              id="welcome_modal_backdrop"
+            />
+
+            {/* Modal Content */}
+            <motion.div 
+              initial={{ scale: 0.95, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 20, opacity: 0 }}
+              transition={{ type: 'spring', duration: 0.5, bounce: 0.15 }}
+              className="bg-[#11241a] border border-lime-500/30 rounded-2xl max-w-2xl w-full p-6 sm:p-8 relative shadow-2xl shadow-lime-950/40 z-10 my-8 max-h-[90vh] overflow-y-auto custom-scrollbar"
+              id="welcome_modal_panel"
+            >
+              {/* Subtle top decoration */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-lime-400 to-emerald-500"></div>
+
+              {/* Close button top right */}
+              <button 
+                onClick={() => setShowWelcomeModal(false)}
+                className="absolute top-4 right-4 text-emerald-500 hover:text-white p-2 rounded-lg hover:bg-[#0a1410] transition-colors cursor-pointer flex items-center justify-center"
+                id="welcome_modal_close_btn"
+                title="關閉"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Content Container */}
+              <div className="space-y-6" id="welcome_modal_body">
+                
+                {/* Header: Manager Gratitude */}
+                <div className="flex flex-col items-center text-center space-y-3" id="welcome_header">
+                  <div className="w-16 h-16 rounded-full bg-lime-500/10 border border-lime-500/30 flex items-center justify-center shadow-lg shadow-lime-500/5 animate-pulse" id="welcome_avatar">
+                    <Smile className="w-8 h-8 text-lime-400" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-extrabold text-lime-300 tracking-wide text-center" id="welcome_title">
+                      店長的暖心致謝與上工教學 💖
+                    </h3>
+                    <p className="text-xs text-emerald-500 font-mono tracking-widest font-black uppercase">
+                      ✨ Welcome to Maguey Cafe Team ✨
+                    </p>
+                  </div>
+                </div>
+
+                {/* Manager Letter */}
+                <div className="bg-[#0a1410] border border-emerald-950/60 p-5 rounded-xl space-y-3 relative" id="manager_letter">
+                  <div className="absolute top-3 right-3 text-[10px] text-lime-500/50 uppercase font-mono font-bold tracking-widest bg-lime-500/10 border border-lime-500/20 px-2 py-0.5 rounded">
+                    Manager's Message
+                  </div>
+                  <p className="text-sm font-semibold text-lime-400 flex items-center gap-1.5" id="letter_greeting">
+                    <Heart className="w-4 h-4 text-red-500 fill-red-500" />
+                    親愛的 {selectedClerk}：
+                  </p>
+                  <p className="text-xs text-emerald-300 leading-relaxed">
+                    辛苦了！由衷感謝你加入 <b>Maguey Cafe (龍舌蘭咖啡廳)</b> 這個溫馨優雅的大家庭。不論是香濃咖啡的沖煮，還是親手包裝的小零食收成，因為有你的用心付出，每位來到店裡的客人都感受到了溫暖與微醺的幸福感。☕️
+                  </p>
+                  <p className="text-xs text-emerald-300 leading-relaxed">
+                    我們在咖啡廳提供全自動化、且具有隱私密碼保護的薪資結算系統。以下是專門為你整理的 <b>「系統申報與發薪 4 步指南」</b>，助你一分鐘上手。祝你今天在 Maguey Cafe 也有段美好充實的工作時光！🍹
+                  </p>
+                </div>
+
+                {/* Quick Tutorial / System Steps */}
+                <div className="space-y-3.5" id="welcome_tutorial_steps">
+                  <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                    <BookOpen className="w-3.5 h-3.5 text-lime-400" />
+                    系統對帳流程四步說明
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3" id="tutorial_grid">
+                    
+                    {/* Step 1 */}
+                    <div className="bg-[#0a1410] p-4 rounded-xl border border-emerald-950 flex gap-3 hover:border-lime-500/25 transition-all group" id="step_1">
+                      <div className="w-8 h-8 rounded-lg bg-lime-500/10 text-lime-400 flex items-center justify-center font-bold font-mono text-sm border border-lime-500/20 shrink-0 group-hover:bg-lime-400 group-hover:text-[#08120e] transition-colors">
+                        1
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-gray-200">填報今日小零食</p>
+                        <p className="text-[11px] text-emerald-500 leading-relaxed">
+                          於本頁輸入今日賺取並收集到的小零食數量，系統會依今日匯率 (<b>${jerkyRate}</b>/片) 即時換算所得。
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className="bg-[#0a1410] p-4 rounded-xl border border-emerald-950 flex gap-3 hover:border-lime-500/25 transition-all group" id="step_2">
+                      <div className="w-8 h-8 rounded-lg bg-lime-500/10 text-lime-400 flex items-center justify-center font-bold font-mono text-sm border border-lime-500/20 shrink-0 group-hover:bg-lime-400 group-hover:text-[#08120e] transition-colors">
+                        2
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-gray-200">送出雲端申報</p>
+                        <p className="text-[11px] text-emerald-500 leading-relaxed">
+                          填寫完畢後，點擊「送出清算，結算今日發薪！」，申報帳目與當前時間將立刻安全儲存並同步至主管後台。
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="bg-[#0a1410] p-4 rounded-xl border border-emerald-950 flex gap-3 hover:border-lime-500/25 transition-all group" id="step_3">
+                      <div className="w-8 h-8 rounded-lg bg-lime-500/10 text-lime-400 flex items-center justify-center font-bold font-mono text-sm border border-lime-500/20 shrink-0 group-hover:bg-lime-400 group-hover:text-[#08120e] transition-colors">
+                        3
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-gray-200">實體點收交割</p>
+                        <p className="text-[11px] text-emerald-500 leading-relaxed">
+                          隨後請將您收集的實體小零食帶到出納櫃檯點交給店長或出納人員，主管會在後台進行快速盤點核對。
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 4 */}
+                    <div className="bg-[#0a1410] p-4 rounded-xl border border-emerald-950 flex gap-3 hover:border-lime-500/25 transition-all group" id="step_4">
+                      <div className="w-8 h-8 rounded-lg bg-lime-500/10 text-lime-400 flex items-center justify-center font-bold font-mono text-sm border border-lime-500/20 shrink-0 group-hover:bg-lime-400 group-hover:text-[#08120e] transition-colors">
+                        4
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-gray-200">撥款並追蹤進度</p>
+                        <p className="text-[11px] text-emerald-500 leading-relaxed">
+                          店長核對無誤後在系統上點選「已收進倉」與「核銷發薪」，你可在下方即時追蹤進度與查看歷史帳單！
+                        </p>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Footer action */}
+                <div className="pt-4 border-t border-emerald-950/50 flex flex-col sm:flex-row items-center justify-between gap-4" id="welcome_footer">
+                  <span className="text-[10px] text-emerald-700 font-mono tracking-wider">
+                    Maguey Cafe 發薪系統 · 誠信與溫度
+                  </span>
+                  <button
+                    onClick={() => setShowWelcomeModal(false)}
+                    className="w-full sm:w-auto bg-gradient-to-r from-lime-400 to-emerald-500 hover:from-lime-500 hover:to-emerald-600 text-[#08120e] text-xs font-black px-6 py-3.5 rounded-xl shadow-lg shadow-lime-500/10 cursor-pointer flex items-center justify-center gap-2 transform active:scale-95 transition-all duration-150"
+                    id="welcome_start_btn"
+                  >
+                    <span>不客氣，我知道了，立即上工！🚀</span>
+                  </button>
+                </div>
+
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

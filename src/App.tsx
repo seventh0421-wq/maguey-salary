@@ -218,7 +218,7 @@ export default function App() {
           <span>System Node: 0x4829A-TEQUILA</span>
           <span>&copy; 2026 Tequila Cafe Co. 🍹 All Rights Reserved</span>
           <span className="font-mono">
-            1 肉乾 ＝ <span className="text-lime-400 font-bold">${jerkyRate.toLocaleString()}</span> 元 | Stable Connection
+            1 小零食 ＝ <span className="text-lime-400 font-bold">${jerkyRate.toLocaleString()}</span> 元 | Stable Connection
           </span>
         </div>
       </footer>

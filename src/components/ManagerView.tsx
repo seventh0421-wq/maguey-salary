@@ -219,13 +219,13 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
     setNotification({ type: 'success', text: '主管已成功登出系統後台。' });
   };
 
-  // 1. 核對回收肉乾 (Toggle isVerified)
+  // 1. 核對回收小零食 (Toggle isVerified)
   const handleToggleVerify = async (entry: PayrollEntry) => {
     const nextVerified = !entry.isVerified;
     
     // Safety check: Cannot un-verify if already paid out
     if (!nextVerified && entry.isPaid) {
-      setNotification({ type: 'error', text: '該筆交易已完成發薪，不得撤回肉乾核對！' });
+      setNotification({ type: 'error', text: '該筆交易已完成發薪，不得撤回小零食核對！' });
       return;
     }
 
@@ -237,7 +237,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
       });
       setNotification({ 
         type: 'success', 
-        text: nextVerified ? `已成功回收「${entry.clerkName}」的 ${entry.meatJerkyCount} 個肉乾，準備進行撥款！` : `已取消「${entry.clerkName}」的核對。`
+        text: nextVerified ? `已成功回收「${entry.clerkName}」的 ${entry.meatJerkyCount} 個小零食，準備進行撥款！` : `已取消「${entry.clerkName}」的核對。`
       });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `payrollEntries/${entry.id}`);
@@ -248,7 +248,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
   const handleTogglePaid = async (entry: PayrollEntry) => {
     // Business rule: MUST recycle/verify first
     if (!entry.isVerified) {
-      setNotification({ type: 'error', text: '請先勾選核對並回收肉乾，才能進行發薪交易！' });
+      setNotification({ type: 'error', text: '請先勾選核對並回收小零食，才能進行發薪交易！' });
       return;
     }
 
@@ -296,7 +296,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
         jerkyRate: rateNum
       });
       setJerkyRate(rateNum);
-      setNotification({ type: 'success', text: `成功將 1 肉乾換算匯率調改為 $${rateNum.toLocaleString()} 元。` });
+      setNotification({ type: 'success', text: `成功將 1 小零食換算匯率調改為 $${rateNum.toLocaleString()} 元。` });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, 'settings/config');
     }
@@ -380,7 +380,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
           </div>
           <h2 className="text-xl font-extrabold text-gray-100 tracking-tight">龍舌蘭管理組金鑰驗證 🔐</h2>
           <p className="text-emerald-500/80 text-sm mt-2 mb-8 leading-relaxed max-w-sm mx-auto">
-            未授權人員禁止進入。請輸入主管管理密碼，始可進行每日清算、回收肉乾與發薪核銷。
+            未授權人員禁止進入。請輸入主管管理密碼，始可進行每日清算、回收小零食與發薪核銷。
           </p>
 
           <div className="space-y-6" id="auth_methods">
@@ -454,7 +454,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
             
             <div className="bg-[#11241a] border border-emerald-900/30 p-6 rounded-2xl shadow-xl overflow-hidden relative animate-fade-in" id="stat_total_jerky">
               <div className="absolute top-0 right-0 w-16 h-16 bg-lime-500/5 rounded-full blur-2xl"></div>
-              <span className="text-xs text-emerald-400 uppercase tracking-wider block font-semibold mb-1">申報肉乾總計</span>
+              <span className="text-xs text-emerald-400 uppercase tracking-wider block font-semibold mb-1">申報小零食總計</span>
               <span className="text-xl sm:text-2xl font-black text-white font-mono">{totalJerky.toLocaleString()} <span className="text-xs text-emerald-600 font-normal">PCS</span></span>
               <div className="mt-2 text-[10px] text-emerald-500 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-lime-400 rounded-full animate-pulse"></span>
@@ -521,7 +521,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
                   </h3>
                   <div className="text-xs text-teal-200 bg-teal-500/10 border border-teal-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5" id="notice_rules">
                     <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-lime-400" />
-                    請主管務必清點肉乾回收進箱後再核銷撥款
+                    請主管務必清點小零食回收進箱後再核銷撥款
                   </div>
                 </div>
 
@@ -586,7 +586,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
                         <thead>
                           <tr className="bg-[#11241a] text-[11px] text-emerald-400 uppercase border-b border-emerald-950/55 h-12">
                             <th className="px-6 font-bold">店員名字 / 時間</th>
-                            <th className="px-6 text-right font-bold">申報收成 (肉乾)</th>
+                            <th className="px-6 text-right font-bold">申報收成 (小零食)</th>
                             <th className="px-6 text-right font-bold">換算所得</th>
                             <th className="px-6 text-center font-bold">1. 實體對帳進倉</th>
                             <th className="px-6 text-center font-bold">2. 核對手動發薪</th>
@@ -722,7 +722,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
                                 
                                 <div className="flex flex-col sm:flex-row sm:gap-x-6 gap-y-1 text-xs text-emerald-500 font-semibold mt-1">
                                   <span>
-                                    🥩 當日收成肉乾: <b className="text-gray-200 font-mono">{group.totalJerky} 個</b> (倉庫已點收 {group.verifiedJerky} 個)
+                                    🥩 當日收成小零食: <b className="text-gray-200 font-mono">{group.totalJerky} 個</b> (倉庫已點收 {group.verifiedJerky} 個)
                                   </span>
                                   <span>
                                     💰 當日所得薪資: <b className="text-lime-400 font-mono">${group.totalSalary.toLocaleString()}</b> (已發發 ${group.paidSalary.toLocaleString()})
@@ -769,7 +769,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
 
                 <form onSubmit={handleSaveRate} className="space-y-4" id="form_jerky_rate_adjustment">
                   <div>
-                    <label className="block text-xs uppercase text-emerald-400 font-bold mb-1.5">當前單支肉乾價格 (幣額：${jerkyRate.toLocaleString()}元)</label>
+                    <label className="block text-xs uppercase text-emerald-400 font-bold mb-1.5">當前單支小零食價格 (幣額：${jerkyRate.toLocaleString()}元)</label>
                     <div className="flex gap-2">
                       <input
                         type="number"
