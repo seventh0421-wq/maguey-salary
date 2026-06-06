@@ -33,12 +33,14 @@ import {
   BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useToast } from './Toast';
 
 interface ClerkViewProps {
   jerkyRate: number;
 }
 
 export default function ClerkView({ jerkyRate }: ClerkViewProps) {
+  const { addToast } = useToast();
   const [selectedClerk, setSelectedClerk] = useState<string>('');
   const [newClerkName, setNewClerkName] = useState<string>('');
   const [clerks, setClerks] = useState<Clerk[]>([]);
@@ -76,10 +78,12 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
     if (currentSelectedClerkObj.password === clerkPassword) {
       setAuthenticatedClerkName(selectedClerk);
       setNotification({ type: 'success', text: `密碼驗證成功！歡迎上工，${selectedClerk} 🍹` });
+      addToast('success', `解鎖成功！歡迎店員「${selectedClerk}」登入 Tequila 薪資系統 🍹`, '🔑 安全解鎖成功');
       setClerkPassword('');
       setShowWelcomeModal(true);
     } else {
       setNotification({ type: 'error', text: '密碼錯誤，請重新輸入！若為首次登入請確認流程。' });
+      addToast('error', '輸入的解鎖密碼有些不對喔，請再次確認！', '❌ 密碼驗證失敗');
     }
   };
 
@@ -92,11 +96,13 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
 
     if (!pw) {
       setNotification({ type: 'error', text: '請輸入有效的密碼！' });
+      addToast('warning', '請輸入您所想要設定的個人密碼喔！');
       return;
     }
 
     if (pw !== confirmPw) {
       setNotification({ type: 'error', text: '兩次輸入的密碼不一致，請重新檢查！' });
+      addToast('warning', '兩次輸入的密碼欄位不吻合，請重新確認。', '⚠️ 密碼不一致');
       return;
     }
 
@@ -110,10 +116,12 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
       setClerkPassword('');
       setClerkPasswordConfig('');
       setNotification({ type: 'success', text: `密碼設定成功！已成功登入店員【${selectedClerk}】系統。` });
+      addToast('coffee', `🎉 安全密碼設定成功！已為店員【${selectedClerk}】配置專屬鑰匙，數據存儲已進行私密防護。`, '🛡️ 隱私防禦啟用');
       setShowWelcomeModal(true);
     } catch (err) {
       console.error(err);
       setNotification({ type: 'error', text: '設定密碼失敗，請稍後再試！' });
+      addToast('error', '設定密碼發生資料庫拒絕，請稍後再試！');
     }
   };
 
@@ -193,6 +201,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
 
     if (clerks.some(c => c.name.toLowerCase() === cleanName.toLowerCase())) {
       setNotification({ type: 'error', text: `店員「${cleanName}」已經存在了！` });
+      addToast('error', `店員「${cleanName}」已經存在於名冊中，無法重複加入喔！`, '❌ 註冊重疊');
       return;
     }
 
@@ -209,6 +218,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
       setClerkPasswordConfig('');
       setNewClerkName('');
       setNotification({ type: 'success', text: `成功註冊店員「${cleanName}」，請在右側設定您的專屬密碼！` });
+      addToast('success', `成功註冊店員「${cleanName}」！已切換至該店員，請設定個人專屬密碼解鎖後台 ☕️`, '✨ 註冊店員成功');
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, `clerks`);
     }
@@ -219,12 +229,14 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
     e.preventDefault();
     if (!selectedClerk) {
       setNotification({ type: 'error', text: '請先選擇你的店員名字！' });
+      addToast('warning', '請在申報前先選擇您的店員角色！', '⚠️ 尚未選取店員');
       return;
     }
 
     const count = Number(meatJerkyCount);
     if (isNaN(count) || count <= 0) {
       setNotification({ type: 'error', text: '請輸入正確的大於 0 的小零食數量！' });
+      addToast('warning', '請輸入高於 0 的正確小零食收成數量喔！', '⚠️ 數量格式錯誤');
       return;
     }
 
@@ -244,8 +256,10 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
       });
       setMeatJerkyCount('');
       setNotification({ type: 'success', text: `薪資計算申報成功！總薪資：$${totalSalary.toLocaleString()} 元。` });
+      addToast('success', `🎉 薪資申報成功！今日收成 ${count} 個小零食，結算金額 $${totalSalary.toLocaleString()} 元。記得點交零食喔！☕️`, '✨ 申報完畢, 待主管盤點');
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, `payrollEntries/${selectedClerk}`);
+      addToast('error', '申報上傳遭拒，請確認連線或洽詢主管。', '❌ 提交失敗');
     }
   };
 

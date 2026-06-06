@@ -33,6 +33,7 @@ import {
   Calendar,
   Search
 } from 'lucide-react';
+import { useToast } from './Toast';
 
 interface ManagerViewProps {
   jerkyRate: number;
@@ -40,6 +41,7 @@ interface ManagerViewProps {
 }
 
 export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProps) {
+  const { addToast } = useToast();
   const [isAdminMode, setIsAdminMode] = useState<boolean>(() => {
     return sessionStorage.getItem('tequila_admin_authed') === 'true';
   });
@@ -115,6 +117,69 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
     });
 
     return Object.values(groups).sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+  }, [entries]);
+
+  // Helper to extract double-digit YYYY-MM from Firebase timestamp
+  const getEntryMonthStr = (createdAtSnap: any): string => {
+    if (!createdAtSnap || !createdAtSnap.seconds) return '未定月份';
+    const d = new Date(createdAtSnap.seconds * 1000);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y} 年 ${m} 月`;
+  };
+
+  // Group entries by months for the historical breakdown
+  const groupedMonthlyHistory = React.useMemo(() => {
+    const groups: { [monthStr: string]: {
+      monthStr: string;
+      totalJerky: number;
+      verifiedJerky: number;
+      totalSalary: number;
+      paidSalary: number;
+      entryCount: number;
+      clerksCount: number;
+    }} = {};
+
+    entries.forEach(entry => {
+      const monthStr = getEntryMonthStr(entry.createdAt);
+      if (monthStr === '未定月份') return;
+
+      if (!groups[monthStr]) {
+        groups[monthStr] = {
+          monthStr,
+          totalJerky: 0,
+          verifiedJerky: 0,
+          totalSalary: 0,
+          paidSalary: 0,
+          entryCount: 0,
+          clerksCount: 0
+        };
+      }
+
+      const mGroup = groups[monthStr];
+      mGroup.totalJerky += entry.meatJerkyCount;
+      if (entry.isVerified) {
+        mGroup.verifiedJerky += entry.meatJerkyCount;
+      }
+      mGroup.totalSalary += entry.totalSalary;
+      if (entry.isPaid) {
+        mGroup.paidSalary += entry.totalSalary;
+      }
+      mGroup.entryCount += 1;
+    });
+
+    // Count unique clerks per month
+    Object.keys(groups).forEach(monthStr => {
+      const clerksSet = new Set<string>();
+      entries.forEach(entry => {
+        if (getEntryMonthStr(entry.createdAt) === monthStr) {
+          clerksSet.add(entry.clerkName);
+        }
+      });
+      groups[monthStr].clerksCount = clerksSet.size;
+    });
+
+    return Object.values(groups).sort((a, b) => b.monthStr.localeCompare(a.monthStr));
   }, [entries]);
 
   const filteredEntries = React.useMemo(() => {
@@ -202,8 +267,10 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
       sessionStorage.setItem('tequila_admin_authed', 'true');
       setIsAdminMode(true);
       setNotification({ type: 'success', text: '主管登入成功！已成功進入管理與出納後台控制端。' });
+      addToast('success', '🔐 主管授權檢驗通過！已成功載入每日盤點、匯率變更與薪資撥付控制端。', '✨ 系統解鎖成功');
     } else {
       setNotification({ type: 'error', text: '主管金鑰密碼錯誤，請輸入正確密碼重試！' });
+      addToast('error', '主管授權密碼錯誤，拒絕進入出納控制面板！', '❌ 驗證失敗');
     }
     setPinInput('');
   };
@@ -217,6 +284,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
     sessionStorage.removeItem('tequila_admin_authed');
     setIsAdminMode(false);
     setNotification({ type: 'success', text: '主管已成功登出系統後台。' });
+    addToast('info', '主管已順利登出管理終端，防護層已重新上鎖。', '🔒 安全登出');
   };
 
   // 1. 核對回收小零食 (Toggle isVerified)
@@ -226,6 +294,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
     // Safety check: Cannot un-verify if already paid out
     if (!nextVerified && entry.isPaid) {
       setNotification({ type: 'error', text: '該筆交易已完成發薪，不得撤回小零食核對！' });
+      addToast('error', '無法取消點收！該筆申報已發放撥款完成，必須先重置撥款。', '⚠️ 撤銷受限');
       return;
     }
 
@@ -239,6 +308,11 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
         type: 'success', 
         text: nextVerified ? `已成功回收「${entry.clerkName}」的 ${entry.meatJerkyCount} 個小零食，準備進行撥款！` : `已取消「${entry.clerkName}」的核對。`
       });
+      if (nextVerified) {
+        addToast('success', `📦 點收完畢！已回收「${entry.clerkName}」的 ${entry.meatJerkyCount} 個小零食入庫，現可點擊撥款！`, '✨ 實物認證通過');
+      } else {
+        addToast('warning', `已取消「${entry.clerkName}」的小零食核對狀態。`, '↩️ 撤銷對帳');
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `payrollEntries/${entry.id}`);
     }
@@ -249,6 +323,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
     // Business rule: MUST recycle/verify first
     if (!entry.isVerified) {
       setNotification({ type: 'error', text: '請先勾選核對並回收小零食，才能進行發薪交易！' });
+      addToast('warning', '實體小零食尚未核對入庫點交，禁止提前撥付發薪！', '⚠️ 撥款阻斷');
       return;
     }
 
@@ -264,6 +339,11 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
         type: 'success', 
         text: nextPaid ? `已成功發薪 $${entry.totalSalary.toLocaleString()} 元給店員「${entry.clerkName}」！` : `已重設「${entry.clerkName}」的發薪交易。`
       });
+      if (nextPaid) {
+        addToast('success', `💰 發薪成功！已發放新台幣 $${entry.totalSalary.toLocaleString()} 元給店員【${entry.clerkName}】，對帳流程已結算！`, '💸 撥付完畢');
+      } else {
+        addToast('warning', `已重設店員【${entry.clerkName}】的撥款進度為未發放。`, '↩️ 撥款重設');
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `payrollEntries/${entry.id}`);
     }
@@ -278,6 +358,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
       const docRef = doc(db, 'payrollEntries', id);
       await deleteDoc(docRef);
       setNotification({ type: 'success', text: `已成功刪除該筆薪酬紀錄。` });
+      addToast('info', `已將「${clerkName}」的申報計件紀錄完全在資料庫中抹除。`, '🗑️ 紀錄抹除完成');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `payrollEntries/${id}`);
     }
@@ -289,6 +370,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
     const rateNum = Number(newRateInput);
     if (isNaN(rateNum) || rateNum <= 0) {
       setNotification({ type: 'error', text: '請輸入有效的正整數！' });
+      addToast('error', '小零食特調單價需大於零，請再次輸入！', '❌ 匯率修改無效');
       return;
     }
     try {
@@ -297,6 +379,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
       });
       setJerkyRate(rateNum);
       setNotification({ type: 'success', text: `成功將 1 小零食換算匯率調改為 $${rateNum.toLocaleString()} 元。` });
+      addToast('warm', `📈 特調金鑰驗證成功！最新一期小零食發放匯率已調整為 1個 ＝ $${rateNum.toLocaleString()} 元。歷程所有未發放申請已自動即時套用此新行情。🍹`, '✨ 特調匯率重塑');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, 'settings/config');
     }
@@ -310,6 +393,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
 
     if (clerks.some(c => c.name.toLowerCase() === cleanName.toLowerCase())) {
       setNotification({ type: 'error', text: `店員「${cleanName}」已在花名冊內！` });
+      addToast('error', `店員「${cleanName}」早已登記於花名冊，無需重複新增！`);
       return;
     }
     try {
@@ -321,6 +405,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
       });
       setNewClerkName('');
       setNotification({ type: 'success', text: `已將「${cleanName}」新增至店員花名冊。` });
+      addToast('success', `店員【${cleanName}】已正式編制登載至 Maguey Cafe 員工大名冊！`, '👤 新名錄登錄成功');
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'clerks');
     }
@@ -334,6 +419,7 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
     try {
       await deleteDoc(doc(db, 'clerks', id));
       setNotification({ type: 'success', text: `店員「${name}」已除名。` });
+      addToast('info', `已成功移除店員【${name}】的排班編制與帳號。`, '👤 除名手續完結');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `clerks/${id}`);
     }
@@ -685,7 +771,70 @@ export default function ManagerView({ jerkyRate, setJerkyRate }: ManagerViewProp
                   )
                 ) : (
                   /* History Tab rendering grouped days with custom aggregates */
-                  <div className="p-6 space-y-4" id="history_tab_content">
+                  <div className="p-6 space-y-6" id="history_tab_content">
+                    
+                    {/* New Monthly Aggregated Summary Panel */}
+                    <div className="bg-[#0a1410]/70 border border-emerald-950 p-5 rounded-2xl space-y-4 shadow-inner" id="monthly_history_agg_panel">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4.5 h-4.5 text-lime-400" />
+                          <h4 className="text-sm font-bold text-gray-100 uppercase tracking-wider">
+                            📊 歷史月度發薪與小零食換算總覽 (按月彙整)
+                          </h4>
+                        </div>
+                        <span className="text-[10px] bg-emerald-950 text-emerald-450 border border-emerald-900/40 px-2 py-0.5 rounded font-mono">
+                          共計 {groupedMonthlyHistory.length} 個月分
+                        </span>
+                      </div>
+                      
+                      {groupedMonthlyHistory.length === 0 ? (
+                        <div className="text-center py-6 text-emerald-700 text-xs">尚無月度歷史數據</div>
+                      ) : (
+                        <div className="overflow-x-auto rounded-xl border border-emerald-950 bg-[#070e0b]">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-[#11241a] text-emerald-400 font-bold border-b border-emerald-950/70 h-10">
+                                <th className="px-4 py-2">月份</th>
+                                <th className="px-4 py-2 text-right">申報小零食總量</th>
+                                <th className="px-4 py-2 text-right font-bold text-lime-400">總薪資金額</th>
+                                <th className="px-4 py-2 text-right text-emerald-300">已實核發</th>
+                                <th className="px-4 py-2 text-center">出勤人數</th>
+                                <th className="px-4 py-2 text-center">申報筆數</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-emerald-950/40">
+                              {groupedMonthlyHistory.map((group) => (
+                                <tr key={group.monthStr} className="h-12 hover:bg-lime-500/5 transition-colors">
+                                  <td className="px-4 py-2 font-bold text-gray-200 font-mono">{group.monthStr}</td>
+                                  <td className="px-4 py-2 text-right font-mono text-gray-300">
+                                    <span className="font-bold">{group.totalJerky.toLocaleString()}</span> <span className="text-[10px] text-emerald-600">PCS</span>
+                                    {group.verifiedJerky < group.totalJerky && (
+                                      <div className="text-[9px] text-amber-500">
+                                        (未點收: {(group.totalJerky - group.verifiedJerky).toLocaleString()} PCS)
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-2 text-right font-mono font-bold text-lime-400">
+                                    ${group.totalSalary.toLocaleString()}
+                                  </td>
+                                  <td className="px-4 py-2 text-right font-mono text-emerald-300">
+                                    ${group.paidSalary.toLocaleString()}
+                                    {group.paidSalary < group.totalSalary && (
+                                      <div className="text-[9px] text-rose-450">
+                                        (待撥: ${(group.totalSalary - group.paidSalary).toLocaleString()})
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-2 text-center font-bold text-indigo-400">{group.clerksCount} 人</td>
+                                  <td className="px-4 py-2 text-center font-mono text-emerald-500">{group.entryCount} 筆</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="text-xs text-emerald-580 leading-relaxed font-semibold">
                       💡 系統已自動將全體店員的申報紀錄依 <b>「實際營業日期」</b> 完成每日彙整，點擊下方營業日的「查詢明細」可一鍵篩選出納對角。
                     </div>
