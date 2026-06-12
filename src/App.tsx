@@ -218,7 +218,7 @@ export default function App() {
         <footer className="py-6 px-6 border-t border-emerald-950/40 bg-[#08120e] text-center text-[10px] text-emerald-600 uppercase tracking-widest font-mono" id="app_footer">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4" id="app_footer_container">
             <span>System Node: 0x4829A-TEQUILA</span>
-            <span>&copy; 2026 Tequila Cafe Co. 🍹 All Rights Reserved</span>
+            <span>&copy; 2026 MAGUEY Co. 🍹 All Rights Reserved</span>
             <span className="font-mono">
               1 小零食 ＝ <span className="text-lime-400 font-bold">${jerkyRate.toLocaleString()}</span> 元 | Stable Connection
             </span>
