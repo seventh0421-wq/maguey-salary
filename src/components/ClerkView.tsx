@@ -400,7 +400,7 @@ export default function ClerkView({ jerkyRate }: ClerkViewProps) {
             <Coffee className="w-6 h-6 text-lime-400" />
           </div>
           <p className="text-sm text-emerald-200/90 italic leading-relaxed">
-            "今日特調：黃金小零食發薪中 🍹<br />
+            "本週零食：烤牛肉塔可餅 🍹<br />
             請務必連同實體繳交至發薪櫃檯！"
           </p>
         </div>
